@@ -7,14 +7,15 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 private let reuseIdentifier = "Cell"
 
 class CategoryViewController: UITableViewController {
 
-    var Categories = [Category]()
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    let realm = try! Realm()
+    
+    var Categories : Results<Category>?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -24,12 +25,12 @@ loadCategories()
 
     //MARK: - Tableview Datasource Methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-       return Categories.count
+       return Categories?.count ?? 1
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
-        cell.textLabel!.text = Categories[indexPath.row].name
+        cell.textLabel!.text = Categories?[indexPath.row].name ?? "No Categories were added"
         return cell
     }
     
@@ -42,14 +43,16 @@ loadCategories()
         let destantionVC = segue.destination as! TodoListViewController
         
         if let indexPath = tableView.indexPathForSelectedRow{
-            destantionVC.selectedCategory = Categories[indexPath.row]
+            destantionVC.selectedCategory = Categories?[indexPath.row]
         }
     }
     
     //MARK: - Data Manipulation Methods
-    func SaveCategories(){
+    func SaveCategory(category : Category){
         do{
-            try context.save()
+            try realm.write {
+                realm.add(category)
+            }
         }catch{
             print("error saving Category in context\(error)")
         }
@@ -57,22 +60,18 @@ loadCategories()
     }
     
     func loadCategories(){
-        let request : NSFetchRequest<Category> = Category.fetchRequest()
-        do{
-            Categories = try  context.fetch(request)
-        }catch{
-           print("error read Category from context\(error)")
-        }
+        Categories = realm.objects(Category.self)
+        
     }
     
     @IBAction func addButtonPressd(_ sender: UIBarButtonItem) {
         let alertController = UIAlertController(title: "Add new Category", message: "", preferredStyle: .alert)
         
         let alertAction = UIAlertAction(title: "Add Category", style: .default) { (UIAlertAction) in
-            let newCategory = Category(context: self.context)
+            let newCategory = Category()
             newCategory.name = alertController.textFields![0].text!
-            self.Categories.append(newCategory)
-            self.SaveCategories()
+            
+            self.SaveCategory(category: newCategory)
         }
         
         alertController.addTextField { (TextField) in
